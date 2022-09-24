@@ -35,6 +35,7 @@ FILE *f1;
 FILE *red_file;
 FILE *blue_file;
 FILE *black_file;
+FILE *white_file;
 FILE *other_file;
 char buff[80];
 int width;
@@ -94,6 +95,11 @@ int alpha;
   fprintf(black_file, "%d %d\n", width, height);
   fprintf(black_file, "%d\n", depth);
 
+  white_file = fopen("white.ppm", "w");
+  fprintf(white_file, "P6\n");
+  fprintf(white_file, "%d %d\n", width, height);
+  fprintf(white_file, "%d\n", depth);
+
   other_file = fopen("other.pam", "w");
   fprintf(other_file, "P7\n");
   fprintf(other_file, "WIDTH %d\n", width);
@@ -124,24 +130,7 @@ int alpha;
     }
     fwrite(pixel_out, 1, 3, red_file);
 
-    if (is_red || (intensity > 90.0))
-    {
-      memset(pixel_out, 255, 3);
-      is_black = 0;
-    }
-    else
-    {
-      memcpy(pixel_out, pixel, 3);
-      is_black = 1;
-    }
-    fwrite(pixel_out, 1, 3, black_file);
-
-    if (is_black)
-    {
-      memcpy(pixel_out, pixel, 3);
-      is_blue = 0;
-    }
-    else if (is_red || (b < 1.05*intensity))
+    if (is_red || (intensity < 90) || (b < 1.15*intensity))
     {
       memset(pixel_out, 255, 3);
       is_blue = 0;
@@ -153,14 +142,29 @@ int alpha;
     }
     fwrite(pixel_out, 1, 3, blue_file);
 
-    if ((r > 230) && (g > 240) && (b > 209))
+    if (is_red || is_blue || (intensity >= 130.0))
     {
-      is_white = 1;
+      memset(pixel_out, 255, 3);
+      is_black = 0;
     }
     else
     {
+      memcpy(pixel_out, pixel, 3);
+      is_black = 1;
+    }
+    fwrite(pixel_out, 1, 3, black_file);
+
+    if ((r < 230) || (g < 240) || (b < 209))
+    {
+      memset(pixel_out, 255, 3);
       is_white = 0;
     }
+    else
+    {
+      memcpy(pixel_out, pixel, 3);
+      is_white = 1;
+    }
+    fwrite(pixel_out, 1, 3, white_file);
 
     if (intensity > 190)
     {
@@ -171,7 +175,7 @@ int alpha;
       is_grey = 0;
     }
 
-    if (is_red || is_blue || is_white || is_grey)
+    if (is_black || is_red || is_blue || is_white || is_grey)
     {
       memset(pixel_out, 0, 3);
       alpha = 255;
@@ -191,6 +195,7 @@ int alpha;
   fclose(red_file);
   fclose(blue_file);
   fclose(black_file);
+  fclose(white_file);
   fclose(other_file);
   return 0;
 }
