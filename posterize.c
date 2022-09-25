@@ -36,6 +36,8 @@ FILE *red_file;
 FILE *blue_file;
 FILE *black_file;
 FILE *white_file;
+FILE *grey_file;
+FILE *brown_file;
 FILE *other_file;
 char buff[80];
 int width;
@@ -51,6 +53,7 @@ int is_blue;
 int is_black;
 int is_white;
 int is_grey;
+int is_brown;
 int alpha;
 
 
@@ -99,6 +102,16 @@ int alpha;
   fprintf(white_file, "P6\n");
   fprintf(white_file, "%d %d\n", width, height);
   fprintf(white_file, "%d\n", depth);
+
+  grey_file = fopen("grey.ppm", "w");
+  fprintf(grey_file, "P6\n");
+  fprintf(grey_file, "%d %d\n", width, height);
+  fprintf(grey_file, "%d\n", depth);
+
+  brown_file = fopen("brown.ppm", "w");
+  fprintf(brown_file, "P6\n");
+  fprintf(brown_file, "%d %d\n", width, height);
+  fprintf(brown_file, "%d\n", depth);
 
   other_file = fopen("other.pam", "w");
   fprintf(other_file, "P7\n");
@@ -166,16 +179,31 @@ int alpha;
     }
     fwrite(pixel_out, 1, 3, white_file);
 
-    if (intensity > 190)
+    if (is_black || is_red || is_blue || is_white || (intensity < 150) || (r + g > b + b))
     {
-      is_grey = 1;
+      memset(pixel_out, 255, 3);
+      is_grey = 0;
     }
     else
     {
-      is_grey = 0;
+      memcpy(pixel_out, pixel, 3); 
+      is_grey = 1;
     }
+    fwrite(pixel_out, 1, 3, grey_file);
 
-    if (is_black || is_red || is_blue || is_white || is_grey)
+    if (is_black || is_red || is_blue || is_white || is_grey || (intensity < 150))
+    {
+      memset(pixel_out, 255, 3);
+      is_brown = 0;
+    }
+    else
+    {
+      memcpy(pixel_out, pixel, 3);
+      is_brown = 1;
+    }
+    fwrite(pixel_out, 1, 3, brown_file);
+
+    if (is_red || is_blue || is_white || is_grey || is_brown)
     {
       memset(pixel_out, 0, 3);
       alpha = 255;
@@ -196,6 +224,8 @@ int alpha;
   fclose(blue_file);
   fclose(black_file);
   fclose(white_file);
+  fclose(grey_file);
+  fclose(brown_file);
   fclose(other_file);
   return 0;
 }
