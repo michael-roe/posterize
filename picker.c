@@ -26,6 +26,8 @@
 
 #include <stdio.h>
 #include <math.h>
+#include <stdlib.h>
+#include <getopt.h>
 
 #define CHANNEL_RED 1
 #define CHANNEL_GREEN 2
@@ -54,7 +56,29 @@ int main(int argc, char **argv)
   double chroma;
   double saturation;
   int channel = CHANNEL_BLUE;
-  double threshold = -0.4;
+  double threshold = 0.0; /* 0.1; */
+  int opt;
+
+  while ((opt = getopt(argc, argv, "rgbs:")) != -1)
+  {
+    switch (opt)
+    {
+      case 'r':
+        channel = CHANNEL_RED;
+	break;
+      case 'g':
+	channel = CHANNEL_GREEN;
+	break;
+      case 'b':
+	channel = CHANNEL_BLUE;
+	break;
+      case 's':
+	threshold = strtod(optarg, NULL);
+	break;
+      default:
+	break;
+    }
+  }
 
   f1 = fopen("picker.ppm", "w");
 
