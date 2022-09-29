@@ -29,14 +29,20 @@
 #include <string.h>
 #include <libpng/png.h>
 
+#define CHANNEL_RED 1
+#define CHANNEL_GREEN 2
+#define CHANNEL_BLUE 3
+
 int main(int argc, char **argv)
 {
 FILE *f1;
 FILE *red_file;
 FILE *blue_file;
+FILE *green_file;
 FILE *black_file;
 FILE *white_file;
 FILE *grey_file;
+FILE *grey2_file;
 FILE *brown_file;
 FILE *other_file;
 char buff[80];
@@ -48,13 +54,20 @@ unsigned char pixel[3];
 unsigned char pixel_out[3];
 double r, g, b;
 double intensity;
+double minpixel;
+double maxpixel;
+int maxindex;
+double saturation;
 int is_red;
 int is_blue;
+int is_green;
 int is_black;
 int is_white;
 int is_grey;
+int is_grey2;
 int is_brown;
 int alpha;
+int replace_colours = 1;
 
 
   if (argc < 2)
@@ -88,6 +101,11 @@ int alpha;
   fprintf(red_file, "%d %d\n", width, height);
   fprintf(red_file, "%d\n", depth);
 
+  green_file = fopen("green.ppm", "w");
+  fprintf(green_file, "P6\n");
+  fprintf(green_file, "%d %d\n", width, height);
+  fprintf(green_file, "%d\n", depth);
+
   blue_file = fopen("blue.ppm", "w");
   fprintf(blue_file, "P6\n");
   fprintf(blue_file, "%d %d\n", width, height);
@@ -107,6 +125,11 @@ int alpha;
   fprintf(grey_file, "P6\n");
   fprintf(grey_file, "%d %d\n", width, height);
   fprintf(grey_file, "%d\n", depth);
+
+  grey2_file = fopen("grey2.ppm", "w");
+  fprintf(grey2_file, "P6\n");
+  fprintf(grey2_file, "%d %d\n", width, height);
+  fprintf(grey2_file, "%d\n", depth);
 
   brown_file = fopen("brown.ppm", "w");
   fprintf(brown_file, "P6\n");
@@ -131,19 +154,53 @@ int alpha;
     b = (double) pixel[2];
     intensity = (r + g + b)/3.0;
 
-    if ((intensity < 30) || (r < 1.2*intensity))
+    minpixel = r;
+    if (g < minpixel)
+      minpixel = g;
+    if (b < minpixel)
+      minpixel = b;
+
+    maxpixel = r;
+    maxindex = CHANNEL_RED;
+    if (g > maxpixel)
+    {
+      maxpixel = g;
+      maxindex = CHANNEL_GREEN;
+    }
+    if (b > maxpixel)
+    {
+      maxpixel = b;
+      maxindex = CHANNEL_BLUE;
+    }
+
+    saturation = 1.0 - minpixel/intensity;
+
+    if ((intensity < 30) || (maxindex != CHANNEL_RED) || (saturation < 0.12) /* (r < 1.2*intensity) */)
     {
       memset(pixel_out, 255, 3);
       is_red = 0;
     }
     else
     {
-      memcpy(pixel_out, pixel, 3);
+      if (replace_colours)
+      {
+        pixel_out[0] = 200;
+	pixel_out[1] = 64;
+	pixel_out[2] = 66;
+      }
+      else
+      {
+        memcpy(pixel_out, pixel, 3);
+      }
       is_red = 1;
+#if 0
+      if (((double) random())/((double) RAND_MAX) < 0.1)
+        printf("%f %f # red\n", saturation, intensity);
+#endif
     }
     fwrite(pixel_out, 1, 3, red_file);
 
-    if (is_red || (intensity < 90) || (b < 1.15*intensity))
+    if (is_red || (intensity < 90) || (maxindex != CHANNEL_BLUE) || (saturation < 0.10 /* 0.09 */) /* (b < 1.15*intensity) */)
     {
       memset(pixel_out, 255, 3);
       is_blue = 0;
@@ -151,11 +208,28 @@ int alpha;
     else
     {
       memcpy(pixel_out, pixel, 3);
+#if 1
+      if (((double) random())/((double) RAND_MAX) < 0.02)
+        printf("%f %f # blue\n", saturation, intensity);
+#endif
       is_blue = 1;
     }
     fwrite(pixel_out, 1, 3, blue_file);
 
-    if (is_red || is_blue || (intensity >= 130.0))
+    if (is_red || is_blue || (intensity < 90.0) || (maxindex != CHANNEL_GREEN)
+      || (saturation < 0.10))
+    {
+      memset(pixel_out, 255, 3);
+      is_green = 0;
+    }
+    else
+    {
+      memcpy(pixel_out, pixel, 3);
+      is_green = 1;
+    }
+    fwrite(pixel_out, 1, 3, green_file);
+
+    if (is_red || is_blue || is_green || (intensity >= 130.0))
     {
       memset(pixel_out, 255, 3);
       is_black = 0;
@@ -179,7 +253,7 @@ int alpha;
     }
     fwrite(pixel_out, 1, 3, white_file);
 
-    if (is_black || is_red || is_blue || is_white || (intensity < 150) || (r + g > b + b))
+    if (is_black || is_red || is_blue || is_green || is_white || (intensity < 150) || (r + g > b + b))
     {
       memset(pixel_out, 255, 3);
       is_grey = 0;
@@ -191,7 +265,7 @@ int alpha;
     }
     fwrite(pixel_out, 1, 3, grey_file);
 
-    if (is_black || is_red || is_blue || is_white || is_grey || (intensity < 150))
+    if (is_black || is_red || is_blue || is_green || is_white || is_grey || (intensity < 150))
     {
       memset(pixel_out, 255, 3);
       is_brown = 0;
@@ -203,7 +277,20 @@ int alpha;
     }
     fwrite(pixel_out, 1, 3, brown_file);
 
-    if (is_red || is_blue || is_white || is_grey || is_brown)
+    if (is_red || is_green || is_blue || is_black | (intensity >= 150.0))
+    {
+      memset(pixel_out, 255, 3);
+      is_grey2 = 0;
+    }
+    else
+    {
+      memcpy(pixel_out, pixel, 3);
+      printf("grey2\n");
+      is_grey2 = 1;
+    }
+    fwrite(pixel_out, 1, 3, grey2_file);
+
+    if (is_red || is_blue || is_green || is_white || is_grey || is_brown)
     {
       memset(pixel_out, 0, 3);
       alpha = 255;
@@ -222,9 +309,11 @@ int alpha;
   fclose(f1);
   fclose(red_file);
   fclose(blue_file);
+  fclose(green_file);
   fclose(black_file);
   fclose(white_file);
   fclose(grey_file);
+  fclose(grey2_file);
   fclose(brown_file);
   fclose(other_file);
   return 0;
